@@ -515,6 +515,28 @@ with st.sidebar:
                     st.error(f"Error: {e}")
 
     st.divider()
+
+    # ── SECTION 2: Daily Receipts Upload ─────────────────────────
+    st.markdown("#### 📋 Upload Daily Receipts")
+    st.caption("Upload each day's customer status file")
+    sel_date      = st.date_input("Business Date", value=date.today())
+    date_str      = sel_date.strftime("%Y-%m-%d")
+    receipts_file = st.file_uploader("Customer Status File", type=["xlsx"], key="rf_daily")
+    if receipts_file:
+        if st.button("💾 Save Receipts", type="primary", use_container_width=True):
+            with st.spinner("Parsing…"):
+                try:
+                    rdf = parse_receipts(receipts_file)
+                    existing_sdf, _ = load_data(date_str)
+                    if existing_sdf is None:
+                        existing_sdf = pd.DataFrame(columns=['Date','Name','Item','Bags','Kgs','Rate','Amount','Cooly'])
+                    save_data(date_str, existing_sdf, rdf)
+                    st.session_state["active_date"] = date_str
+                    st.success(f"✅ Receipts saved · {date_str}")
+                except Exception as e:
+                    st.error(f"Parse error: {e}")
+
+    st.divider()
     all_dates = get_all_dates()
     st.markdown(f"#### 📅 History ({len(all_dates)} days)")
     if all_dates:
@@ -604,11 +626,12 @@ with TAB_TODAY:
     for c in ['Opening','Today Sales','Collected','Balance']:
         disp[c] = disp[c].apply(inr)
     disp['Pay %'] = disp['Pay %'].apply(lambda x: f"{x}%")
+    disp['Status'] = disp['Status'].astype(str)  # guard against float dtype when receipts empty
     t1,t2,t3,t4 = st.tabs([f"All ({len(disp)})","🔴 Not Paid","🟡 Partial","🟢 Good"])
     with t1: st.dataframe(disp, use_container_width=True, hide_index=True, height=300)
-    with t2: st.dataframe(disp[disp['Status'].str.contains('No Payment|Low')], use_container_width=True, hide_index=True, height=300)
-    with t3: st.dataframe(disp[disp['Status'].str.contains('Partial')], use_container_width=True, hide_index=True, height=300)
-    with t4: st.dataframe(disp[disp['Status'].str.contains('Good|Cleared')], use_container_width=True, hide_index=True, height=300)
+    with t2: st.dataframe(disp[disp['Status'].str.contains('No Payment|Low', na=False)], use_container_width=True, hide_index=True, height=300)
+    with t3: st.dataframe(disp[disp['Status'].str.contains('Partial', na=False)], use_container_width=True, hide_index=True, height=300)
+    with t4: st.dataframe(disp[disp['Status'].str.contains('Good|Cleared', na=False)], use_container_width=True, hide_index=True, height=300)
 
     st.markdown('<div class="sec">SALES BREAKDOWN</div>', unsafe_allow_html=True)
     s1,s2 = st.columns(2)
