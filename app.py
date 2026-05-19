@@ -574,9 +574,9 @@ a = analyze_day(sales, receipts)
 # ══════════════════════════════════════════════════════════════
 # TABS
 # ══════════════════════════════════════════════════════════════
-TAB_TODAY, TAB_RUNNING, TAB_PREVWEEK, TAB_VEG, TAB_BADDEBT, TAB_PROFIT, TAB_REWARDS = st.tabs([
+TAB_TODAY, TAB_RUNNING, TAB_PREVWEEK, TAB_VEG, TAB_BADDEBT, TAB_PROFIT, TAB_REWARDS, TAB_LEDGER = st.tabs([
     "📊 Today", "📈 Running Balance", "📋 Unpaid Tracker",
-    "🥦 Vegetables", "⚠️ Bad Debts", "💰 Profit", "🏆 Rewards"
+    "🥦 Vegetables", "⚠️ Bad Debts", "💰 Profit", "🏆 Rewards", "📒 Ledger"
 ])
 
 
@@ -1354,6 +1354,117 @@ with TAB_REWARDS:
         rank[rate_col] = rank[rate_col].apply(lambda x: f"{float(x):.1f}%")
     rank.columns = ['Area','Customer','Total Sales','Total Collected','Balance','Profit Earned','Profit Gap','Coll %'][:len(rank.columns)]
     st.dataframe(rank, use_container_width=True, height=420)
+
+# ─────────────────────────────────────────────────────────────
+# TAB 8 — LEDGER
+# ─────────────────────────────────────────────────────────────
+with TAB_LEDGER:
+    st.markdown('<div class="sec">📒 CUSTOMER LEDGER</div>', unsafe_allow_html=True)
+    st.caption("Day-by-day debit (sales) and credit (receipts) with running balance for any customer")
+
+    # Build customer list from MongoDB or session state
+    all_custs = set()
+    if MONGO_AVAILABLE:
+        all_custs |= set(db.sales.distinct("Name"))
+        all_custs |= set(db.receipts.distinct("Name"))
+    for d in st.session_state.store.values():
+        if "sales" in d and not d["sales"].empty and "Name" in d["sales"].columns:
+            all_custs |= set(d["sales"]["Name"].dropna().unique())
+        if "receipts" in d and not d["receipts"].empty and "Name" in d["receipts"].columns:
+            all_custs |= set(d["receipts"]["Name"].dropna().unique())
+    all_custs -= EXCLUDE_CUSTOMERS
+    all_custs = sorted(all_custs)
+
+    if not all_custs:
+        st.info("No data yet. Import sales or upload receipts first.")
+    else:
+        chosen_cust = st.selectbox("Select Customer", all_custs, key="ledger_cust")
+
+        # Pull all sales rows for this customer
+        if MONGO_AVAILABLE:
+            s_rows = list(db.sales.find({"Name": chosen_cust}, {"_id": 0}))
+            r_rows = list(db.receipts.find({"Name": chosen_cust}, {"_id": 0}))
+            sdf_all = pd.DataFrame(s_rows) if s_rows else pd.DataFrame()
+            rdf_all = pd.DataFrame(r_rows) if r_rows else pd.DataFrame()
+        else:
+            # Fallback: scrape session state
+            s_parts, r_parts = [], []
+            for d_str, d in st.session_state.store.items():
+                if "sales" in d and not d["sales"].empty:
+                    chunk = d["sales"][d["sales"]["Name"] == chosen_cust].copy()
+                    chunk["date"] = d_str
+                    s_parts.append(chunk)
+                if "receipts" in d and not d["receipts"].empty:
+                    chunk = d["receipts"][d["receipts"]["Name"] == chosen_cust].copy()
+                    chunk["date"] = d_str
+                    r_parts.append(chunk)
+            sdf_all = pd.concat(s_parts, ignore_index=True) if s_parts else pd.DataFrame()
+            rdf_all = pd.concat(r_parts, ignore_index=True) if r_parts else pd.DataFrame()
+
+        # Build ledger entries list
+        ledger_rows = []
+        if not sdf_all.empty and "date" in sdf_all.columns:
+            for _, row in sdf_all.iterrows():
+                ledger_rows.append({
+                    "Date":        row["date"],
+                    "Type":        "🛒 Sale",
+                    "Particulars": str(row.get("Item","")),
+                    "Debit":       float(row.get("Amount", 0)),
+                    "Credit":      0.0,
+                })
+        if not rdf_all.empty and "date" in rdf_all.columns:
+            for _, row in rdf_all.iterrows():
+                rec = float(row.get("Receipts", 0))
+                if rec > 0:
+                    ledger_rows.append({
+                        "Date":        row["date"],
+                        "Type":        "💰 Receipt",
+                        "Particulars": "Payment received",
+                        "Debit":       0.0,
+                        "Credit":      rec,
+                    })
+
+        if not ledger_rows:
+            st.info(f"No transactions found for **{chosen_cust}**.")
+        else:
+            ledger = pd.DataFrame(ledger_rows)
+            ledger["Date"] = pd.to_datetime(ledger["Date"])
+            ledger = ledger.sort_values(["Date","Type"]).reset_index(drop=True)
+            ledger["Running Balance"] = (ledger["Debit"] - ledger["Credit"]).cumsum()
+
+            # KPI summary
+            total_debit  = ledger["Debit"].sum()
+            total_credit = ledger["Credit"].sum()
+            final_bal    = total_debit - total_credit
+            k1, k2, k3 = st.columns(3)
+            with k1: st.markdown(kpi("green", "Total Sales (Dr)", inr(total_debit), f"{len(ledger[ledger['Type']=='🛒 Sale'])} entries"), unsafe_allow_html=True)
+            with k2: st.markdown(kpi("yellow", "Total Collected (Cr)", inr(total_credit), f"{total_credit/max(total_debit,1)*100:.1f}% collected"), unsafe_allow_html=True)
+            with k3: st.markdown(kpi("red" if final_bal > 0 else "green", "Net Balance", inr(final_bal), "Outstanding" if final_bal > 0 else "Cleared"), unsafe_allow_html=True)
+
+            st.markdown('<div class="sec">LEDGER ENTRIES</div>', unsafe_allow_html=True)
+
+            # Format for display
+            disp_l = ledger.copy()
+            disp_l["Date"]            = disp_l["Date"].dt.strftime("%d %b %Y")
+            disp_l["Debit"]           = disp_l["Debit"].apply(lambda x: inr(x) if x > 0 else "—")
+            disp_l["Credit"]          = disp_l["Credit"].apply(lambda x: inr(x) if x > 0 else "—")
+            disp_l["Running Balance"] = disp_l["Running Balance"].apply(inr)
+            st.dataframe(disp_l[["Date","Type","Particulars","Debit","Credit","Running Balance"]],
+                         use_container_width=True, hide_index=True, height=420)
+
+            # Balance trend chart
+            st.markdown('<div class="sec">BALANCE TREND</div>', unsafe_allow_html=True)
+            fig_l = px.area(
+                ledger, x="Date", y="Running Balance",
+                title=f"{chosen_cust} — Running Balance Over Time",
+                labels={"Running Balance": "₹ Outstanding"},
+                color_discrete_sequence=["#ff6b6b"],
+            )
+            fig_l.update_layout(**ct(), height=280)
+            fig_l.add_hline(y=0, line_dash="dash", line_color="#6bcb77", annotation_text="Cleared")
+            fig_l.update_xaxes(gridcolor='rgba(255,255,255,.05)')
+            fig_l.update_yaxes(gridcolor='rgba(255,255,255,.05)')
+            st.plotly_chart(fig_l, use_container_width=True)
 
 st.divider()
 st.caption(f"SVC Vegetables v2.0 · Visakhapatnam · {'MongoDB' if MONGO_AVAILABLE else 'Session'} · Margin 5% · Excludes: Kanchili, Sender, SVC Staff")
