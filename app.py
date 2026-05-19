@@ -49,6 +49,25 @@ EXCLUDE_CUSTOMERS = {"PTC", "SVC", "SVC BABU", "SVC BHASKAR", "SVC PARMESH",
 st.set_page_config(page_title="SVC Vegetables · Dashboard", page_icon="🥬",
                    layout="wide", initial_sidebar_state="expanded")
 
+# ─── Password Gate ────────────────────────────────────────────────────────────
+def _check_password():
+    if st.session_state.get("_authenticated"):
+        return True
+    correct = st.secrets.get("passwords", {}).get("svc_password", "")
+    st.markdown("## 🥬 SVC Vegetables · Login")
+    pwd = st.text_input("Password", type="password", key="_pwd_input")
+    if st.button("Login"):
+        if pwd == correct:
+            st.session_state["_authenticated"] = True
+            st.rerun()
+        else:
+            st.error("Incorrect password")
+    return False
+
+if not _check_password():
+    st.stop()
+# ─────────────────────────────────────────────────────────────────────────────
+
 st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap');
@@ -222,6 +241,13 @@ def load_data(date_str):
             sdf = pd.DataFrame(s)
             rdf = pd.DataFrame(r) if r else pd.DataFrame(
                 columns=['Schedule','Name','OB','Receipts','Balance','Sales','Total','is_internal'])
+            # Coerce numeric columns that MongoDB may return as mixed types
+            for c in ['OB','Sales','Receipts','Balance','Total']:
+                if c in rdf.columns:
+                    rdf[c] = pd.to_numeric(rdf[c], errors='coerce').fillna(0)
+            for c in ['Bags','Kgs','Rate','Amount','Cooly']:
+                if c in sdf.columns:
+                    sdf[c] = pd.to_numeric(sdf[c], errors='coerce').fillna(0)
             st.session_state.store[date_str] = {"sales": sdf, "receipts": rdf}
             return sdf, rdf
     return None, None
@@ -237,7 +263,14 @@ def get_all_dates():
 # ANALYSIS — SINGLE DAY
 # ══════════════════════════════════════════════════════════════
 def analyze_day(sales, receipts):
-    cust = receipts.copy()  # exclusions already applied at parse time
+    cust = receipts.copy()
+    # Coerce all numeric columns — MongoDB may return them as strings/objects
+    for c in ['OB','Sales','Receipts','Balance','Total']:
+        if c in cust.columns:
+            cust[c] = pd.to_numeric(cust[c], errors='coerce').fillna(0)
+    for c in ['Bags','Kgs','Rate','Amount','Cooly']:
+        if c in sales.columns:
+            sales[c] = pd.to_numeric(sales[c], errors='coerce').fillna(0)
     cust['profit_potential'] = cust['Sales'] * MARGIN_PCT
     cust['profit_realized']  = cust.apply(lambda r: min(r['Receipts'], r['Sales']) * MARGIN_PCT, axis=1)
     cust['collection_rate']  = cust.apply(
