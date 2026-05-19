@@ -389,6 +389,20 @@ def build_running_balance(all_dates, from_date=None, to_date=None):
     area_grp['Collection_Rate'] = (
         area_grp['Period_Receipts'] / area_grp['Period_Sales'].replace(0,1) * 100).round(1)
 
+    # Force all numeric columns to float to prevent object dtype errors after MongoDB load
+    for col in ['Period_Sales','Period_Receipts','Running_Balance','Collection_Rate',
+                'Cumulative_Sales','Cumulative_Receipts','Cumulative_Profit_Potential',
+                'Cumulative_Profit_Realized','Profit_Realization_Rate','Net_Credit_Extended',
+                'Latest_Balance','Days_Active','Earliest_OB']:
+        if col in cust_grp.columns:
+            cust_grp[col] = pd.to_numeric(cust_grp[col], errors='coerce').fillna(0)
+    for col in ['Period_Sales','Period_Receipts','Running_Balance','Collection_Rate','Latest_Balance']:
+        if col in area_grp.columns:
+            area_grp[col] = pd.to_numeric(area_grp[col], errors='coerce').fillna(0)
+    for col in ['Sales','Receipts','Balance','Running_Balance']:
+        if col in area_daily.columns:
+            area_daily[col] = pd.to_numeric(area_daily[col], errors='coerce').fillna(0)
+
     return dict(
         cust_grp=cust_grp,
         area_grp=area_grp,
