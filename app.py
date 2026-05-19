@@ -1250,9 +1250,11 @@ with TAB_PROFIT:
     st.dataframe(cp, use_container_width=True, hide_index=True, height=360)
 
     st.markdown('<div class="sec">HOW TO MAXIMIZE PROFIT</div>', unsafe_allow_html=True)
-    worst = a['area'].sort_values('Collection_Eff').iloc[0]
-    best  = a['area'].sort_values('Collection_Eff').iloc[-1]
-    st.markdown(f"""
+    area_sorted = a['area'].sort_values('Collection_Eff')
+    if len(area_sorted) >= 1:
+        worst = area_sorted.iloc[0]
+        best  = area_sorted.iloc[-1]
+        st.markdown(f"""
 | Insight | Action |
 |---|---|
 | 🔴 **{worst['Schedule']}** collects only {worst['Collection_Eff']:.1f}% | Prioritize evening collection there first |
@@ -1262,6 +1264,8 @@ with TAB_PROFIT:
 | Enforce daily credit limits | Cap each customer at max 7-day outstanding |
 | ₹ per day uncollected = bad debt risk | After 30 days, recovery probability drops sharply |
 """)
+    else:
+        st.info("Upload receipts for this date to see profit insights.")
 
 
 # ─────────────────────────────────────────────────────────────
