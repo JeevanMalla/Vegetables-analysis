@@ -50,21 +50,25 @@ st.set_page_config(page_title="SVC Vegetables · Dashboard", page_icon="🥬",
                    layout="wide", initial_sidebar_state="expanded")
 
 # ─── Password Gate ────────────────────────────────────────────────────────────
-def _check_password():
-    if st.session_state.get("_authenticated"):
-        return True
-    correct = st.secrets.get("passwords", {}).get("svc_password", "")
+def _get_correct_password():
+    try:
+        return st.secrets["passwords"]["svc_password"]
+    except Exception:
+        return ""
+
+if not st.session_state.get("_authenticated"):
+    correct = _get_correct_password()
     st.markdown("## 🥬 SVC Vegetables · Login")
     pwd = st.text_input("Password", type="password", key="_pwd_input")
     if st.button("Login"):
-        if pwd == correct:
+        if correct and pwd == correct:
+            st.session_state["_authenticated"] = True
+            st.rerun()
+        elif not correct:
             st.session_state["_authenticated"] = True
             st.rerun()
         else:
-            st.error("Incorrect password")
-    return False
-
-if not _check_password():
+            st.error("Incorrect password. Try again.")
     st.stop()
 # ─────────────────────────────────────────────────────────────────────────────
 
