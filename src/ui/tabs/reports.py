@@ -148,7 +148,6 @@ def render(ctx):
                                    value=True, key="qs_zero")
 
         rep_date_str = rep_date.strftime("%Y-%m-%d")
-        _qprev_str = (rep_date - timedelta(days=1)).strftime("%Y-%m-%d")
 
         _qday_s, _qday_r = load_data(rep_date_str)
         _day_sales_map = (_qday_s.groupby('Name')['Amount'].sum().to_dict()
@@ -170,21 +169,38 @@ def render(ctx):
             for _doc in dbs.db.customers.find({}, {"_id": 0, "name": 1, "area": 1}):
                 _qs_area_map.setdefault(_doc.get("name"), _doc.get("area", ""))
 
-        _rb_open  = get_running_balances_bulk(_qprev_str)
-        _rb_close = get_running_balances_bulk(rep_date_str)
-        _open_map  = dict(zip(_rb_open['Name'], _rb_open['running_balance'])) if not _rb_open.empty else {}
-        _close_map = dict(zip(_rb_close['Name'], _rb_close['running_balance'])) if not _rb_close.empty else {}
+        # Running Balance = OVERALL tracked figure up to & incl. the report day
+        _rb_now = get_running_balances_bulk(rep_date_str)
+        _rb_map = dict(zip(_rb_now['Name'], _rb_now['running_balance'])) if not _rb_now.empty else {}
 
-        _qnames = ((set(_p_sales_map) | set(_day_sales_map) | set(_day_rcpt_map) | set(_close_map))
+        # Closing Balance = OB + day sales − day receipts, computed from the actual
+        # sales list (the receipts file's own Balance column can lag the sales data).
+        # OB source: today's receipts file; fallback = previous day's closing Balance.
+        _ob_map = {}
+        if _qday_r is not None and not _qday_r.empty and 'OB' in _qday_r.columns:
+            _ob_map = dict(zip(_qday_r['Name'],
+                               pd.to_numeric(_qday_r['OB'], errors='coerce').fillna(0)))
+        _prev_cb_map = {}
+        if not _ob_map:
+            _prior = [d for d in get_all_dates() if d < rep_date_str]
+            if _prior:
+                _, _prev_r = load_data(max(_prior))
+                if _prev_r is not None and not _prev_r.empty and 'Balance' in _prev_r.columns:
+                    _prev_cb_map = dict(zip(_prev_r['Name'],
+                                            pd.to_numeric(_prev_r['Balance'], errors='coerce').fillna(0)))
+
+        _qnames = ((set(_p_sales_map) | set(_day_sales_map) | set(_day_rcpt_map) | set(_rb_map))
                    - EXCLUDE_CUSTOMERS)
         qdf = pd.DataFrame([{
             "Area": str(_qs_area_map.get(n, "") or ""),
             "Name": n,
             "Period_Sales": float(_p_sales_map.get(n, 0)),
-            "Running_Balance": float(_open_map.get(n, 0)),
+            "Running_Balance": float(_rb_map.get(n, 0)),
             "Day_Sales": float(_day_sales_map.get(n, 0)),
             "Day_Receipts": float(_day_rcpt_map.get(n, 0)),
-            "Overall_Balance": float(_close_map.get(n, 0)),
+            "Overall_Balance": (float(_ob_map.get(n, _prev_cb_map.get(n, 0)))
+                                + float(_day_sales_map.get(n, 0))
+                                - float(_day_rcpt_map.get(n, 0))),
         } for n in sorted(_qnames)])
 
         if qdf.empty:
@@ -206,12 +222,13 @@ def render(ctx):
                 for _c in ['Period_Sales', 'Running_Balance', 'Day_Sales', 'Day_Receipts', 'Overall_Balance']:
                     _q_show[_c] = _q_show[_c].apply(inr)
                 _q_show.columns = ['Area', 'Customer', f'Period Sales ({qs_from}→{rep_date})',
-                                   'Running Balance (before day)', 'Day Sales', 'Day Receipts',
-                                   'Overall Balance']
+                                   'Running Balance (overall)', 'Day Sales', 'Day Receipts',
+                                   'Closing Balance']
                 st.dataframe(_q_show, use_container_width=True, hide_index=True, height=360)
                 st.caption(f"**{len(qdf)} customers** · Period Sales {inr(qdf['Period_Sales'].sum())} · "
                            f"Day Sales {inr(qdf['Day_Sales'].sum())} · Day Receipts {inr(qdf['Day_Receipts'].sum())} · "
-                           f"Overall Balance {inr(qdf['Overall_Balance'].sum())}")
+                           f"Closing Balance {inr(qdf['Overall_Balance'].sum())} · "
+                           f"Running Balance {inr(qdf['Running_Balance'].sum())}")
 
                 if FPDF_AVAILABLE:
                     _q_title = ["SVC VEGETABLES", "QUICK SUMMARY — PER CUSTOMER",
