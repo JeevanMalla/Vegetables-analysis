@@ -1,0 +1,12 @@
+streamlit>=1.32.0
+pandas>=2.0.0
+openpyxl>=3.1.0
+plotly>=5.18.0
+pymongo>=4.6.0
+fpdf2>=2.7.0
+uharfbuzz>=0.39.0
+python-escpos>=3.0
+pypdfium2>=4.0
+pillow>=10.0
+pyusb>=1.2
+libusb-package>=1.0

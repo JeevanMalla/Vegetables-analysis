@@ -1,0 +1,152 @@
+[
+  {
+    "name": "TMC",
+    "description": "Hybrid/market tomato - your #1 seller (Rs 42.8L)",
+    "telugu_name": "టమాటా"
+  },
+  {
+    "name": "C.T",
+    "description": "Carrot - #2 seller (Rs 7.3L)",
+    "telugu_name": "క్యారెట్"
+  },
+  {
+    "name": "DONDA",
+    "description": "Ivy gourd (dondakaya)",
+    "telugu_name": "దొండకాయ"
+  },
+  {
+    "name": "MULAGA",
+    "description": "Drumstick (mulakkada)",
+    "telugu_name": "మునగకాయ"
+  },
+  {
+    "name": "CAPSICUM",
+    "description": "Capsicum / bell pepper",
+    "telugu_name": "క్యాప్సికం"
+  },
+  {
+    "name": "CABBAGE",
+    "description": "Cabbage",
+    "telugu_name": "క్యాబేజీ"
+  },
+  {
+    "name": "BEERA",
+    "description": "Ridge gourd (beerakaya)",
+    "telugu_name": "బీరకాయ"
+  },
+  {
+    "name": "BENDA",
+    "description": "Okra / ladies finger (bendakaya)",
+    "telugu_name": "బెండకాయ"
+  },
+  {
+    "name": "KIRA DOSA",
+    "description": "Cucumber (keera)",
+    "telugu_name": "కీరదోసకాయ"
+  },
+  {
+    "name": "BEET",
+    "description": "Beetroot",
+    "telugu_name": "బీట్‌రూట్"
+  },
+  {
+    "name": "POTALLS",
+    "description": "Snake gourd (potlakaya)?",
+    "telugu_name": "పొట్లకాయ"
+  },
+  {
+    "name": "ANAPA",
+    "description": "Broad / hyacinth beans (anapakaya)",
+    "telugu_name": "అనపకాయ"
+  },
+  {
+    "name": "ARATI",
+    "description": "Raw banana (aratikaya)",
+    "telugu_name": "అరటికాయ"
+  },
+  {
+    "name": "MULLANGI",
+    "description": "Radish (mullangi)",
+    "telugu_name": "ముల్లంగి"
+  },
+  {
+    "name": "YARRA DUMPALU",
+    "description": "'Erra dumpalu' - sweet potato ",
+    "telugu_name": "ఎర్ర దుంపలు"
+  },
+  {
+    "name": "BADDA CHIKKIDI",
+    "description": "Flat broad beans (badda chikkudu)",
+    "telugu_name": "బద్ద చిక్కుడు"
+  },
+  {
+    "name": "LONG CHIKKIDI",
+    "description": "Long flat beans - which variety? please check",
+    "telugu_name": "పొడవు చిక్కుడు"
+  },
+  {
+    "name": "BRINJAL",
+    "description": "Eggplant (vankaya)",
+    "telugu_name": "వంకాయ"
+  },
+  {
+    "name": "BLACK BRINJAL",
+    "description": "Black eggplant (nalla vankaya)",
+    "telugu_name": "నల్ల వంకాయ"
+  },
+  {
+    "name": "KAKARA",
+    "description": "Bitter gourd (kakarakaya)",
+    "telugu_name": "కాకరకాయ"
+  },
+  {
+    "name": "SHYAMA DUMPLU",
+    "description": "chamadumpa",
+    "telugu_name": "చామదుంప"
+  },
+  {
+    "name": "KANDA",
+    "description": "Elephant foot yam (kanda)",
+    "telugu_name": "కంద"
+  },
+  {
+    "name": "GORI CHIKUDI",
+    "description": "Cluster beans (goru chikkudu)",
+    "telugu_name": "గోరు చిక్కుడు"
+  },
+  {
+    "name": "AGAGARA",
+    "description": "Spine gourd (aagakara)",
+    "telugu_name": "ఆగాకర"
+  },
+  {
+    "name": "DOSA",
+    "description": "Yellow cucumber (dosakaya)",
+    "telugu_name": "దోసకాయ"
+  },
+  {
+    "name": "CHILLIES",
+    "description": "Green chillies (pachi mirchi)",
+    "telugu_name": "పచ్చి మిర్చి"
+  },
+  {
+    "name": "BEENS",
+    "description": "French beans",
+    "telugu_name": "బీన్స్"
+  },
+  {
+    "name": "PIKADOR",
+    "description": "bajji mirchi",
+    "telugu_name": "బజ్జి మిర్చి"
+  },
+  {
+    "name": "KARRAPENDALAM",
+    "description": "Cassava / tapioca (karra pendalam)",
+    "telugu_name": "కర్ర పెండలం"
+  },
+  {
+    "name": "COULIFLOWER",
+    "description": "Cauliflower (spelled COULIFLOWER in your data)",
+    "telugu_name": "కాలీఫ్లవర్"
+  }
+]
