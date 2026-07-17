@@ -4,8 +4,7 @@ on:
   workflow_dispatch:
   push:
     paths:
-      - print_agent.py
-      - requirements_agent.txt
+      - agent/**
       - .github/workflows/build-agent.yml
 
 permissions:
@@ -14,33 +13,43 @@ permissions:
 jobs:
   build:
     runs-on: windows-latest
+    strategy:
+      matrix:
+        include:
+          - arch: x64
+            python: "3.12"
+            suffix: 64bit
+          - arch: x86
+            python: "3.11"
+            suffix: 32bit
     steps:
       - uses: actions/checkout@v4
 
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
+          python-version: ${{ matrix.python }}
+          architecture: ${{ matrix.arch }}
 
       - name: Install dependencies
-        run: pip install -r requirements_agent.txt pyinstaller
+        run: pip install -r agent/requirements_agent.txt pyinstaller
 
       - name: Build single-file EXE
         run: >
-          pyinstaller --onefile --name SVCPrintAgent
+          pyinstaller --onefile --name SVCPrintAgent-${{ matrix.suffix }}
           --collect-all escpos --collect-all pypdfium2
-          print_agent.py
+          agent/print_agent.py
 
       - name: Verify EXE was produced
         shell: pwsh
         run: |
-          $f = Get-Item dist\SVCPrintAgent.exe
+          $f = Get-Item dist\SVCPrintAgent-${{ matrix.suffix }}.exe
           "EXE size: {0:N0} bytes" -f $f.Length
           if ($f.Length -lt 5MB) { exit 1 }
 
       - uses: actions/upload-artifact@v4
         with:
-          name: SVCPrintAgent
-          path: dist/SVCPrintAgent.exe
+          name: SVCPrintAgent-${{ matrix.suffix }}
+          path: dist/SVCPrintAgent-${{ matrix.suffix }}.exe
 
       - name: Publish release
         uses: softprops/action-gh-release@v2
@@ -49,7 +58,8 @@ jobs:
           name: Shop Print Agent (Windows)
           body: |
             Single-file print agent for the shop PC — no installation needed.
-            1. Download SVCPrintAgent.exe to the shop computer
-            2. Double-click it, paste the MongoDB link, pick the GOBBLER printer
-            3. Leave the window open — bills print automatically with auto-cut
-          files: dist/SVCPrintAgent.exe
+            • Normal PCs: download SVCPrintAgent-64bit.exe
+            • Older 32-bit PCs: download SVCPrintAgent-32bit.exe
+            1. Double-click it, paste the MongoDB link, pick the GOBBLER printer
+            2. Leave the window open — bills print automatically with auto-cut
+          files: dist/SVCPrintAgent-${{ matrix.suffix }}.exe

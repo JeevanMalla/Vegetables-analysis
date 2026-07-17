@@ -223,14 +223,32 @@ Evening → Cash collected from customers
 
 ---
 
-## 📁 File Structure
+## 📁 File Structure (v3 — modular)
 
 ```
-svc_dashboard/
-├── app.py               ← Main Streamlit application
-├── requirements.txt     ← Python dependencies
-├── PROJECT_SUMMARY.md   ← This file
-└── README.md            ← Setup and usage guide
+svc_veggies/
+├── app.py                     ← Thin Streamlit entry point (auth, wiring)
+├── src/
+│   ├── config.py              ← Business constants (margin, excluded areas/customers)
+│   ├── services/
+│   │   ├── database.py        ← MongoDB connection + business settings
+│   │   ├── parsing.py         ← Excel parsing & uploaded-file type detection
+│   │   ├── storage.py         ← Save/load per-date data (Mongo + session cache)
+│   │   ├── analytics.py       ← Running balances, day analysis, period aggregations
+│   │   ├── billing.py         ← 80mm thermal bill & summary PDFs (Telugu support)
+│   │   └── printing.py        ← Direct ESC/POS (USB/LAN) + shop print-job queue
+│   └── ui/
+│       ├── theme.py           ← CSS + KPI/chart helpers
+│       ├── auth.py            ← Password gate
+│       ├── sidebar.py         ← Uploads, settings, history
+│       ├── common.py          ← Shared import surface for UI modules
+│       └── tabs/              ← One module per dashboard tab
+├── agent/
+│   ├── print_agent.py         ← Shop-PC print agent (built to .exe by CI)
+│   └── requirements_agent.txt
+├── fonts/                     ← Noto Sans Telugu (bill printing)
+├── .github/workflows/         ← Builds SVCPrintAgent 64-bit & 32-bit EXEs
+└── requirements.txt
 ```
 
 ---
