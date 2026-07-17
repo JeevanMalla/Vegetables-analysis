@@ -169,8 +169,10 @@ def render(ctx):
             for _doc in dbs.db.customers.find({}, {"_id": 0, "name": 1, "area": 1}):
                 _qs_area_map.setdefault(_doc.get("name"), _doc.get("area", ""))
 
-        # Running Balance = OVERALL tracked figure up to & incl. the report day
-        _rb_now = get_running_balances_bulk(rep_date_str)
+        # Running Balance = overall tracked figure up to the PREVIOUS day only
+        # (initial + all sales − all receipts through yesterday; report day excluded)
+        _rb_prev_str = (rep_date - timedelta(days=1)).strftime("%Y-%m-%d")
+        _rb_now = get_running_balances_bulk(_rb_prev_str)
         _rb_map = dict(zip(_rb_now['Name'], _rb_now['running_balance'])) if not _rb_now.empty else {}
 
         # Closing Balance = OB + day sales − day receipts, computed from the actual
@@ -222,7 +224,7 @@ def render(ctx):
                 for _c in ['Period_Sales', 'Running_Balance', 'Day_Sales', 'Day_Receipts', 'Overall_Balance']:
                     _q_show[_c] = _q_show[_c].apply(inr)
                 _q_show.columns = ['Area', 'Customer', f'Period Sales ({qs_from}→{rep_date})',
-                                   'Running Balance (overall)', 'Day Sales', 'Day Receipts',
+                                   'Running Balance (till prev day)', 'Day Sales', 'Day Receipts',
                                    'Closing Balance']
                 st.dataframe(_q_show, use_container_width=True, hide_index=True, height=360)
                 st.caption(f"**{len(qdf)} customers** · Period Sales {inr(qdf['Period_Sales'].sum())} · "

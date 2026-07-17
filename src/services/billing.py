@@ -236,7 +236,7 @@ def build_summary_pdf(df, title_lines, fmt="a4"):
             pdf.add_page()
         tline(sep)
         tline(f"TOTALS ({len(df)} customers)", bold=True, size=8)
-        for lbl, key in [("PERIOD SALES", 'Period_Sales'), ("RUNNING BAL (ALL)", 'Running_Balance'),
+        for lbl, key in [("PERIOD SALES", 'Period_Sales'), ("RUN.BAL (PREV DAY)", 'Running_Balance'),
                          ("DAY SALES", 'Day_Sales'), ("DAY RECEIPTS", 'Day_Receipts'),
                          ("CLOSING BALANCE", 'Overall_Balance')]:
             tline(f"{lbl:<16}: {_amt(totals[key]):>15}", bold=True, size=8)
@@ -253,7 +253,7 @@ def build_summary_pdf(df, title_lines, fmt="a4"):
         pdf.cell(0, 5.5, _latin(tl), align='C', new_x="LMARGIN", new_y="NEXT")
     pdf.ln(2)
     widths  = [26, 48, 24, 24, 24, 24, 24]
-    headers = ["AREA", "CUSTOMER", "PERIOD SALE", "RUN.BAL(ALL)", "DAY SALE", "RECEIPTS", "CLOSING BAL"]
+    headers = ["AREA", "CUSTOMER", "PERIOD SALE", "RUN.BAL(PREV)", "DAY SALE", "RECEIPTS", "CLOSING BAL"]
     aligns  = ['L', 'L', 'R', 'R', 'R', 'R', 'R']
 
     def header_row():
