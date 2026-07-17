@@ -128,14 +128,22 @@ def main():
     client = pymongo.MongoClient(cfg["MONGO_URI"], serverSelectionTimeoutMS=10000,
                                  tlsAllowInvalidCertificates=True)
     db = client["svc_vegetables"]
-    db.print_jobs.create_index([("status", 1), ("created_at", 1)])
+    try:
+        db.print_jobs.create_index([("status", 1), ("created_at", 1)])
+    except Exception:
+        pass
     mode = "DRY-RUN (no printer)" if DRY_RUN else (
         f"printer: {cfg.get('printer_name')}" if sys.platform == "win32" else "USB")
-    print(f"✅ Agent running — {mode}. Waiting for print jobs… (Ctrl+C to stop)")
+    print(f"✅ Agent running — {mode}. Waiting for print jobs… (close this window to stop)")
     while True:
-        job = db.print_jobs.find_one_and_update(
-            {"status": "pending"}, {"$set": {"status": "printing"}},
-            sort=[("created_at", 1)])
+        try:
+            job = db.print_jobs.find_one_and_update(
+                {"status": "pending"}, {"$set": {"status": "printing"}},
+                sort=[("created_at", 1)])
+        except Exception as e:
+            print(f"[{datetime.now():%H:%M:%S}] ⚠️ network problem ({str(e)[:80]}) — retrying in 10s…")
+            time.sleep(10)
+            continue
         if job is None:
             time.sleep(3)
             continue
@@ -147,8 +155,11 @@ def main():
                                      {"$set": {"status": "done", "done_at": datetime.now()}})
             print(f"    ✅ done — {n} bill(s) cut")
         except Exception as e:
-            db.print_jobs.update_one({"_id": job["_id"]},
-                                     {"$set": {"status": "error", "error": str(e)[:300]}})
+            try:
+                db.print_jobs.update_one({"_id": job["_id"]},
+                                         {"$set": {"status": "error", "error": str(e)[:300]}})
+            except Exception:
+                pass
             print(f"    ❌ FAILED: {e}")
 
 
@@ -157,3 +168,9 @@ if __name__ == "__main__":
         main()
     except KeyboardInterrupt:
         print("\nAgent stopped.")
+    except Exception as fatal:
+        print(f"\n❌ Agent could not start: {fatal}")
+        try:
+            input("Press Enter to close…")   # keep the window open so the error is readable
+        except Exception:
+            pass

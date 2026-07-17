@@ -1,0 +1,57 @@
+name: Build Shop Print Agent EXE
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - print_agent.py
+      - requirements_agent.txt
+      - .github/workflows/build-agent.yml
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install -r requirements_agent.txt pyinstaller
+
+      - name: Build single-file EXE
+        run: >
+          pyinstaller --onefile --name SVCPrintAgent
+          --collect-all escpos --collect-all pypdfium2
+          print_agent.py
+
+      - name: Smoke test (exe starts and shows setup prompt)
+        shell: pwsh
+        run: |
+          $p = Start-Process -FilePath dist\SVCPrintAgent.exe -PassThru -RedirectStandardOutput out.txt -RedirectStandardInput NUL
+          Start-Sleep -Seconds 8
+          if (!$p.HasExited) { Stop-Process -Id $p.Id -Force }
+          Get-Content out.txt
+          if ((Get-Content out.txt -Raw) -notmatch "setup|MONGO|Agent") { exit 1 }
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: SVCPrintAgent
+          path: dist/SVCPrintAgent.exe
+
+      - name: Publish release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: agent-latest
+          name: Shop Print Agent (Windows)
+          body: |
+            Single-file print agent for the shop PC — no installation needed.
+            1. Download SVCPrintAgent.exe to the shop computer
+            2. Double-click it, paste the MongoDB link, pick the GOBBLER printer
+            3. Leave the window open — bills print automatically with auto-cut
+          files: dist/SVCPrintAgent.exe
