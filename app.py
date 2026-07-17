@@ -577,6 +577,14 @@ def print_images_escpos(images, host, port=9100):
             pass
 
 
+def queue_print_job(pdf_bytes, n_bills, label):
+    """Store a print job in MongoDB for the shop print agent (print_agent.py)."""
+    from bson.binary import Binary
+    db.print_jobs.insert_one({
+        "created_at": datetime.now(), "label": label, "n_bills": int(n_bills),
+        "pdf": Binary(pdf_bytes), "status": "pending", "error": ""})
+
+
 def print_images_escpos_usb(images, vid, pid):
     """Send raster images to the USB-connected printer, auto-cutting after each one."""
     be = _usb_backend()
@@ -2118,17 +2126,55 @@ with TAB_BILLS:
                                    key="bills_dl")
 
             # ── DIRECT ESC/POS PRINTING — no PDF, no driver, auto-cut ──
-            st.markdown('<div class="sec">🖨️ DIRECT PRINT — ESC/POS (USB or LAN)</div>', unsafe_allow_html=True)
-            if not ESCPOS_AVAILABLE:
+            st.markdown('<div class="sec">🖨️ DIRECT PRINT — ESC/POS</div>', unsafe_allow_html=True)
+            st.caption("Auto-cutter fires after every bill · no PDF scaling, no driver dialogs.")
+            conn_kind = st.radio(
+                "Where is the printer?",
+                ["🏪 Shop printer (app runs on website/cloud)", "USB (this computer)", "LAN (network)"],
+                horizontal=True, key="printer_conn")
+
+            if conn_kind.startswith("🏪"):
+                st.caption("Jobs go through MongoDB to the **print agent** running on the shop's Windows PC "
+                           "(`print_agent.py` — one-time setup). Click Print here, bills come out there.")
+                if not MONGO_AVAILABLE:
+                    st.error("Database connection needed for shop printing.")
+                elif st.button(f"🖨️ Print {_n_bills} bill(s) on SHOP printer", type="primary",
+                               use_container_width=True, key="print_shop"):
+                    with st.spinner("Building bills…"):
+                        _pb, _pn = build_bills_pdf(
+                            bill_date_str,
+                            area=None if bill_area == "All Areas" else bill_area,
+                            customer=None if bill_cust == "All Customers" else bill_cust)
+                    if not _pb:
+                        st.warning("No bills matched that selection.")
+                    else:
+                        _tag2 = (bill_cust if bill_cust != "All Customers"
+                                 else bill_area if bill_area != "All Areas" else "ALL")
+                        queue_print_job(_pb, _pn, f"Bills {_tag2} {bill_date_str}")
+                        st.success(f"✅ {_pn} bill(s) queued — the shop printer will start within a few seconds "
+                                   f"(if the agent is running).")
+                if MONGO_AVAILABLE:
+                    _jobs = list(db.print_jobs.find({}, {"pdf": 0}).sort("created_at", -1).limit(5))
+                    if _jobs:
+                        _jdf = pd.DataFrame([{
+                            "Time": j["created_at"].strftime("%d %b %H:%M:%S"),
+                            "Job": j.get("label", ""), "Bills": j.get("n_bills", 0),
+                            "Status": {"pending": "⏳ waiting for agent", "printing": "🖨️ printing…",
+                                       "done": "✅ printed", "error": "❌ " + str(j.get("error", ""))[:60]
+                                       }.get(j.get("status"), j.get("status")),
+                        } for j in _jobs])
+                        st.dataframe(_jdf, use_container_width=True, hide_index=True)
+                        _oldest_pending = next((j for j in reversed(_jobs) if j.get("status") == "pending"), None)
+                        if _oldest_pending and (datetime.now() - _oldest_pending["created_at"]).total_seconds() > 60:
+                            st.warning("A job has been waiting over a minute — is `print_agent.py` running "
+                                       "on the shop computer?")
+                        if st.button("🔄 Refresh status", key="jobs_refresh"):
+                            st.rerun()
+
+            elif not ESCPOS_AVAILABLE:
                 st.error("Direct printing needs: `pip install python-escpos pypdfium2 pyusb libusb-package` "
                          "— then restart the app.")
-            else:
-                st.caption("Prints straight to the GOBBLER — no PDF scaling, no driver, "
-                           "auto-cutter fires after every bill.")
-                conn_kind = st.radio("Connection", ["USB (cable)", "LAN (network)"],
-                                     horizontal=True, key="printer_conn")
-
-                if conn_kind == "USB (cable)":
+            elif conn_kind == "USB (this computer)":
                     _vid, _pid = get_printer_usb()
                     u1, u2 = st.columns([1, 2])
                     with u1:
@@ -2181,7 +2227,7 @@ with TAB_BILLS:
                                          f"lock the USB port); unplug/replug and Detect again. "
                                          f"The PDF download below always works as backup.")
 
-                else:  # LAN
+            else:  # LAN
                     dp1, dp2 = st.columns([3, 1])
                     with dp1:
                         printer_ip = st.text_input("Printer IP address", value=get_printer_ip(),

@@ -1,0 +1,9 @@
+# Shop print agent dependencies (install on the shop's Windows PC):
+#   pip install -r requirements_agent.txt
+pymongo>=4.6.0
+python-escpos>=3.0
+pypdfium2>=4.0
+pillow>=10.0
+pywin32>=306; sys_platform == "win32"
+pyusb>=1.2; sys_platform != "win32"
+libusb-package>=1.0; sys_platform != "win32"
